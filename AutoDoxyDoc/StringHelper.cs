@@ -32,7 +32,7 @@ namespace AutoDoxyDoc
         public static string[] SplitCamelCase(string str)
         {
             string spacedString = Regex.Replace(str, "([A-Z])", " $1", System.Text.RegularExpressions.RegexOptions.Compiled).Trim().ToLower();
-            return spacedString.Split(' ');
+            return spacedString.Split(new char[] { ' ', '_' }, StringSplitOptions.RemoveEmptyEntries);
         }
 
         /// <summary>

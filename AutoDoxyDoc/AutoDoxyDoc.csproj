@@ -89,7 +89,6 @@
       <ResourceName>Menus.ctmenu</ResourceName>
       <SubType>Designer</SubType>
     </VSCTCompile>
-    <Content Include="index.html" />
     <Content Include="Resources\Icons.png" />
     <Content Include="Resources\AutoDoxyDocPackage.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
