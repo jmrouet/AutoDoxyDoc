@@ -1,16 +1,25 @@
-# CppDoxyComplete
-Generate Qt style documentaton comment stubs for c++ when three forward slashes are typed
+# AutoDoxyDoc
+Generates Qt/JavaDoc style documentation comments for C++ when /// or /*! is typed.
 
-This is a fork of https://github.com/tcbhat/cpptripleslash that generates Qt style comments instead of xml triple slash comments.
+This is a fork of https://github.com/dragospop/CppDoxyComplete.
 
-For now it supports the
+Supports the following format:
 <pre>
 /*!
+ *  <comment>
  *
+ *      @param <param_name> <direction> <comment>
  *
- * \param param_name format
+ *      @return <comment>
  */
 </pre>
- 
- Version 2 should be configurable, but I can't promise I have time for this.
 
+Supports also smart updating of existing comments using Ctrl+Shift+D. Smart updating
+can preserve existing comments but also add/remove parameter comments based on the changes
+done to the function parameters.
+
+AutoDoxyDoc also supports some customizations:
+- Tag indentation level
+- Tag style (JavaDoc or Qt)
+- Smart comments: Autogeneration of comments based on the function information
+- Abbreviations: Ability to unabbreviate word for smart comments
