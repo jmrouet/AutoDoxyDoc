@@ -83,7 +83,12 @@ namespace AutoDoxyDoc
         {
             if (e.ApplyBehavior == ApplyKind.Apply)
             {
-                DoxygenConfig.Instance.LoadSettings(this);
+                var configService = GetService(typeof(DoxygenConfigService)) as DoxygenConfigService;
+
+                if (configService != null)
+                {
+                    configService.Config.LoadSettings(this);
+                }
             }
 
             base.OnApply(e);

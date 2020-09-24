@@ -65,6 +65,7 @@
       <DependentUpon>AbbreviationsEditorDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="DoxygenConfig.cs" />
+    <Compile Include="DoxygenConfigService.cs" />
     <Compile Include="DoxygenGenerator.cs" />
     <Compile Include="GenerateComment.cs" />
     <Compile Include="AutoDoxyDocPackage.cs" />

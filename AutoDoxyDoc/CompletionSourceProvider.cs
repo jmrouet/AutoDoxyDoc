@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.Language.Intellisense;
+using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.Utilities;
@@ -17,6 +18,9 @@ namespace AutoDoxyDoc
         [Import]
         internal IGlyphService GlyphService { get; set; }
 
+        [Import]
+        internal SVsServiceProvider ServiceProvider { get; set; }
+
         /// <summary>
         /// Tries to create a Doxygen completion source.
         /// </summary>
@@ -24,7 +28,14 @@ namespace AutoDoxyDoc
         /// <returns></returns>
         public ICompletionSource TryCreateCompletionSource(ITextBuffer textBuffer)
         {
-            return new DoxygenCompletionSource(this, textBuffer);
+            var configService = ServiceProvider.GetService(typeof(DoxygenConfigService)) as DoxygenConfigService;
+
+            if (configService == null)
+            {
+                return null;
+            }
+
+            return new DoxygenCompletionSource(this, textBuffer, configService);
         }
     }
 }

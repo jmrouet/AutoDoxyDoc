@@ -37,8 +37,10 @@ namespace AutoDoxyDoc
         /// </summary>
         /// <param name="package">Owner package, not null.</param>
         /// <param name="commandService">Command service to add command to, not null.</param>
-        private GenerateComment(AsyncPackage package, OleMenuCommandService commandService)
+        private GenerateComment(AsyncPackage package, OleMenuCommandService commandService, DoxygenConfigService configService)
         {
+            m_generator = new DoxygenGenerator(configService);
+
             this.package = package ?? throw new ArgumentNullException(nameof(package));
             commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
 
@@ -78,7 +80,8 @@ namespace AutoDoxyDoc
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(package.DisposalToken);
 
             OleMenuCommandService commandService = await package.GetServiceAsync((typeof(IMenuCommandService))) as OleMenuCommandService;
-            Instance = new GenerateComment(package, commandService);
+            DoxygenConfigService configService = await package.GetServiceAsync((typeof(DoxygenConfigService))) as DoxygenConfigService;
+            Instance = new GenerateComment(package, commandService, configService);
         }
 
         /// <summary>
@@ -291,6 +294,6 @@ namespace AutoDoxyDoc
         }
 
         //! Doxygen generator.
-        private DoxygenGenerator m_generator = new DoxygenGenerator(DoxygenConfig.Instance);
+        private DoxygenGenerator m_generator;
     }
 }

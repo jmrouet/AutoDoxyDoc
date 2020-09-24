@@ -8,14 +8,25 @@ using System.Text.RegularExpressions;
 
 namespace AutoDoxyDoc
 {
-
+    /// <summary>
+    /// Doxygen comment generator.
+    /// </summary>
     class DoxygenGenerator
     {
-        public DoxygenGenerator(DoxygenConfig config)
+        /// <summary>
+        /// Constructor.
+        /// </summary>
+        /// <param name="configService">Doxygen configuration service.</param>
+        public DoxygenGenerator(DoxygenConfigService configService)
         {
-            m_config = config;
-            m_config.ConfigChanged += onConfigChanged;
+            m_configService = configService;
+            m_configService.Config.ConfigChanged += onConfigChanged;
             InitStyle();
+        }
+
+        ~DoxygenGenerator()
+        {
+            m_configService.Config.ConfigChanged -= onConfigChanged;
         }
 
         /// <summary>
@@ -88,7 +99,7 @@ namespace AutoDoxyDoc
                 sb.Append("\r\n" + spaces + " *  ");
 
                 // Try to determine initial main comment if comment auto-generation is enabled.
-                if (m_config.SmartComments)
+                if (Config.SmartComments)
                 {
                     sb.Append(TryGenerateBriefDesc(codeElement));
                 }
@@ -143,7 +154,7 @@ namespace AutoDoxyDoc
                             string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
                             string paramAlignSpaces = new string(' ', maxParamNameLength - param.Name.Length + 2);
                             string typeAlignSpaces = new string(' ', maxTypeDirectionLength - typeDirName.Length + 1);
-                            string tagLine = m_indentString + m_config.TagChar + "param " + typeDirName + typeAlignSpaces + param.Name + paramAlignSpaces;
+                            string tagLine = m_indentString + Config.TagChar + "param " + typeDirName + typeAlignSpaces + param.Name + paramAlignSpaces;
                             sb.Append("\r\n" + spaces + " *  " + tagLine);
 
                             // Add existing comments.
@@ -151,7 +162,7 @@ namespace AutoDoxyDoc
                             {
                                 AppendComments(sb, parsedParam.Comments, spaces, tagLine.Length);
                             }
-                            else if (m_config.SmartComments && codeElement.Children.Count == 1)
+                            else if (Config.SmartComments && codeElement.Children.Count == 1)
                             {
                                 sb.Append(TryGenerateParamDesc(codeElement, param));
                             }
@@ -162,14 +173,14 @@ namespace AutoDoxyDoc
                 if (function.Type.AsString != "void")
                 {
                     sb.Append("\r\n" + spaces + " *");
-                    string tagLine = m_indentString + m_config.TagChar + "return ";
+                    string tagLine = m_indentString + Config.TagChar + "return ";
                     sb.Append("\r\n" + spaces + " *  " + tagLine);
 
                     if (parsedComment.Returns != null)
                     {
                         AppendComments(sb, parsedComment.Returns.Comments, spaces, tagLine.Length);
                     }
-                    else if (m_config.SmartComments)
+                    else if (Config.SmartComments)
                     {
                         sb.Append(TryGenerateReturnDesc(function));
                     }
@@ -179,7 +190,7 @@ namespace AutoDoxyDoc
             // Write other sections that were in the existing comments.
             foreach (ParsedSection section in parsedComment.TagSections)
             {
-                string tagLine = m_indentString + m_config.TagChar + section.TagName + " ";
+                string tagLine = m_indentString + Config.TagChar + section.TagName + " ";
                 sb.Append("\r\n" + spaces + " *");
                 sb.Append("\r\n" + spaces + " *  " + tagLine);
                 AppendComments(sb, section.Comments, spaces, tagLine.Length);
@@ -488,19 +499,19 @@ namespace AutoDoxyDoc
                         {
                             if (getter)
                             {
-                                desc = String.Format(m_config.BriefGetterDescFormat, UnabbreviateAndJoin(funcNameWords, 1), owner);
+                                desc = String.Format(Config.BriefGetterDescFormat, UnabbreviateAndJoin(funcNameWords, 1), owner);
                             }
                             else if (setter)
                             {
-                                desc = String.Format(m_config.BriefSetterDescFormat, UnabbreviateAndJoin(funcNameWords, 1), owner);
+                                desc = String.Format(Config.BriefSetterDescFormat, UnabbreviateAndJoin(funcNameWords, 1), owner);
                             }
                             else if (boolGetter)
                             {
-                                desc = String.Format(m_config.BriefBoolGetterDescFormat, UnabbreviateAndJoin(funcNameWords, 1), className + " ", funcNameWords[0]);
+                                desc = String.Format(Config.BriefBoolGetterDescFormat, UnabbreviateAndJoin(funcNameWords, 1), className + " ", funcNameWords[0]);
                             }
                         }
                     }
-                    else if (m_config.SmartCommentsForAllFunctions)
+                    else if (Config.SmartCommentsForAllFunctions)
                     {
                         // Allow smart comments for single word functions only in case they are class members.
                         // All other functions are supported.
@@ -550,12 +561,12 @@ namespace AutoDoxyDoc
             if (isBoolean)
             {
                 string[] words = StringHelper.SplitCamelCase(param.Name);
-                desc = StringHelper.Capitalize(String.Format(m_config.ParamBooleanFormat, UnabbreviateAndJoin(words)));
+                desc = StringHelper.Capitalize(String.Format(Config.ParamBooleanFormat, UnabbreviateAndJoin(words)));
             }
             else if (setter || getter)
             {
                 string[] words = StringHelper.SplitCamelCase(param.Name);
-                desc = StringHelper.Capitalize(String.Format(m_config.ParamSetterDescFormat, UnabbreviateAndJoin(words)));
+                desc = StringHelper.Capitalize(String.Format(Config.ParamSetterDescFormat, UnabbreviateAndJoin(words)));
             }
 
             return desc;
@@ -576,15 +587,15 @@ namespace AutoDoxyDoc
             {
                 if (words[0] == "get")
                 {
-                    desc = StringHelper.Capitalize(String.Format(m_config.ReturnDescFormat, UnabbreviateAndJoin(words, 1)));
+                    desc = StringHelper.Capitalize(String.Format(Config.ReturnDescFormat, UnabbreviateAndJoin(words, 1)));
                 }
                 else if (words[0] == "is")
                 {
-                    desc = StringHelper.Capitalize(String.Format(m_config.ReturnBooleanDescFormat, UnabbreviateAndJoin(words, 1)));
+                    desc = StringHelper.Capitalize(String.Format(Config.ReturnBooleanDescFormat, UnabbreviateAndJoin(words, 1)));
                 }
                 else if (words[0] == "has")
                 {
-                    desc = StringHelper.Capitalize(String.Format(m_config.ReturnBooleanDescFormat, "has " + UnabbreviateAndJoin(words, 1)));
+                    desc = StringHelper.Capitalize(String.Format(Config.ReturnBooleanDescFormat, "has " + UnabbreviateAndJoin(words, 1)));
                 }
             }
 
@@ -598,7 +609,7 @@ namespace AutoDoxyDoc
         /// <returns>Unabbreviated word, or the original if no conversion was found for it.</returns>
         private string Unabbreviate(string word)
         {
-            return m_config.Abbreviations.Unabbreviate(word);
+            return Config.Abbreviations.Unabbreviate(word);
         }
 
         /// <summary>
@@ -617,9 +628,9 @@ namespace AutoDoxyDoc
         /// </summary>
         private void InitStyle()
         {
-            m_indentString = new string(' ', m_config.TagIndentation);
-            m_regexParam = new Regex(@"\s*\*\s+\" + m_config.TagChar + @"param\s+(\[[a-z,]+\])\s+(\w+)(?:\s+(.*))?$", RegexOptions.Compiled);
-            m_regexTagSection = new Regex(@"\s*\*\s+\" + m_config.TagChar + @"([a-z]+)(?:\s+(.*))?$", RegexOptions.Compiled);
+            m_indentString = new string(' ', Config.TagIndentation);
+            m_regexParam = new Regex(@"\s*\*\s+\" + Config.TagChar + @"param\s+(\[[a-z,]+\])\s+(\w+)(?:\s+(.*))?$", RegexOptions.Compiled);
+            m_regexTagSection = new Regex(@"\s*\*\s+\" + Config.TagChar + @"([a-z]+)(?:\s+(.*))?$", RegexOptions.Compiled);
         }
 
         /// <summary>
@@ -714,8 +725,10 @@ namespace AutoDoxyDoc
             public List<ParsedSection> TagSections { get; } = new List<ParsedSection>();
         }
 
+        private DoxygenConfig Config { get { return m_configService.Config; } }
+
         //! Doxygen style configuration.
-        private DoxygenConfig m_config;
+        private DoxygenConfigService m_configService;
 
         //! Indentation for doxygen tags.
         private string m_indentString;
