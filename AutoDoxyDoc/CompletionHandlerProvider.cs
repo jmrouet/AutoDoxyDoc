@@ -33,6 +33,13 @@ namespace AutoDoxyDoc
         {
             try
             {
+                var configService = ServiceProvider.GetService(typeof(DoxygenConfigService)) as DoxygenConfigService;
+
+                if (configService == null)
+                {
+                    return;
+                }
+
                 IWpfTextView textView = this.AdapterService.GetWpfTextView(textViewAdapter);
                 if (textView == null)
                 {
@@ -43,7 +50,7 @@ namespace AutoDoxyDoc
                 {
                     ThreadHelper.ThrowIfNotOnUIThread();
                     var dte = ServiceProvider.GetService(typeof(DTE)) as DTE;
-                    return new DoxygenCompletionCommandHandler(textViewAdapter, textView, this, dte);
+                    return new DoxygenCompletionCommandHandler(textViewAdapter, textView, this, dte, configService);
                 };
 
                 textView.Properties.GetOrCreateSingletonProperty(createCommandHandler);

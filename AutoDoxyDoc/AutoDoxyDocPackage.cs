@@ -36,7 +36,10 @@ namespace AutoDoxyDoc
     [InstalledProductRegistration("#110", "#112", "1.0", IconResourceID = 400)] // Info on this package for Help/About
     [ProvideMenuResource("Menus.ctmenu", 1)]
     [Guid(AutoDoxyDocPackage.PackageGuidString)]
-    [ProvideAutoLoad(UIContextGuids.SolutionExists/*, PackageAutoLoadFlags.BackgroundLoad*/)] // TODO: Enable background load. It is currently disabled because for some reason the package doesn't always load.
+    [ProvideService(typeof(DoxygenConfigService), IsAsyncQueryable = true)]
+    //[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExists_string, PackageAutoLoadFlags.BackgroundLoad)] // TODO: Enable background load. It is currently disabled because for some reason the package doesn't always load.
+    //[ProvideAutoLoad(VSConstants.UICONTEXT.NoSolution_string, PackageAutoLoadFlags.BackgroundLoad)]
+    //[ProvideAutoLoad(UIContextGuids80.NoSolution, PackageAutoLoadFlags.BackgroundLoad)]
     //[ProvideAutoLoad(UIContextGuids.SolutionExists)] // TODO: Should be changed to async load but for some reason it is not loaded properly in that case.
     [ProvideOptionPage(typeof(OptionsPage), "AutoDoxyDoc", "General", 0, 0, true)]
     [ProvideProfileAttribute(typeof(OptionsPage), "AutoDoxyDoc", "AutoDoxyDoc Settings", 106, 107, isToolsOptionPage: true, DescriptionResourceID = 108)]
@@ -70,15 +73,30 @@ namespace AutoDoxyDoc
         /// <returns>A task representing the async work of package initialization, or an already completed task if there is none. Do not return null from this method.</returns>
         protected override async Task InitializeAsync(CancellationToken cancellationToken, IProgress<ServiceProgressData> progress)
         {
+            AddService(typeof(DoxygenConfigService), CreateDoxygenConfigServiceAsync, true);
+
             // When initialized asynchronously, the current thread may be a background thread at this point.
             // Do any initialization that requires the UI thread after switching to the UI thread.
             await this.JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
             // Load Doxygen configuration.
             OptionsPage page = (OptionsPage)GetDialogPage(typeof(OptionsPage));
-            DoxygenConfig.Instance.LoadSettings(page);
+
+            var configService = await GetServiceAsync(typeof(DoxygenConfigService)) as DoxygenConfigService;
+
+            if (configService != null)
+            {
+                configService.Config.LoadSettings(page);
+            }
 
             await GenerateComment.InitializeAsync(this);
+        }
+
+        private async Task<object> CreateDoxygenConfigServiceAsync(IAsyncServiceContainer container, CancellationToken cancellationToken, Type serviceType)
+        {
+            var svc = new DoxygenConfigService();
+            await svc.InitializeAsync(this, cancellationToken);
+            return svc;
         }
 
         #endregion

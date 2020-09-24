@@ -26,11 +26,12 @@ namespace AutoDoxyDoc
         /// <param name="textView"></param>
         /// <param name="provider"></param>
         /// <param name="dte"></param>
-        public DoxygenCompletionCommandHandler(IVsTextView textViewAdapter, IWpfTextView textView, CompletionHandlerProvider provider, DTE dte)
+        public DoxygenCompletionCommandHandler(IVsTextView textViewAdapter, IWpfTextView textView, CompletionHandlerProvider provider, DTE dte, DoxygenConfigService configService)
         {
-			this.m_textView = textView;
-            this.m_provider = provider;
-            this.m_dte = dte;
+			m_textView = textView;
+            m_provider = provider;
+            m_dte = dte;
+            m_configService = configService;
 
             // Add the command to the command chain.
             if (textViewAdapter != null &&
@@ -41,10 +42,15 @@ namespace AutoDoxyDoc
                 textViewAdapter.AddCommandFilter(this, out m_nextCommandHandler);
             }
 
-            m_generator = new DoxygenGenerator(m_config);
+            m_generator = new DoxygenGenerator(m_configService);
 
-            m_config.ConfigChanged += onDoxygenConfigChanged;
+            m_configService.Config.ConfigChanged += onDoxygenConfigChanged;
             onDoxygenConfigChanged(this, EventArgs.Empty);
+        }
+
+        ~DoxygenCompletionCommandHandler()
+        {
+            m_configService.Config.ConfigChanged -= onDoxygenConfigChanged;
         }
 
         public int QueryStatus(ref Guid pguidCmdGroup, uint cCmds, OLECMD[] prgCmds, IntPtr pCmdText)
@@ -128,7 +134,7 @@ namespace AutoDoxyDoc
                 int retVal = m_nextCommandHandler.Exec(ref pguidCmdGroup, nCmdID, nCmdexecopt, pvaIn, pvaOut);
 
                 // Start auto-completion session for doxygen tags and parameter names.
-                if (!IsAutoCompletionActive() && (typedChar == m_config.TagChar || typedChar == '['))
+                if (!IsAutoCompletionActive() && (typedChar == m_configService.Config.TagChar || typedChar == '['))
                 {
                     string currentLine = m_textView.TextSnapshot.GetLineFromPosition(
                                 m_textView.Caret.Position.BufferPosition.Position).GetText();
@@ -239,7 +245,7 @@ namespace AutoDoxyDoc
             {
                 if (m_regexTagSection.IsMatch(currentLine))
                 {
-                    extraIndent = m_config.TagIndentation;
+                    extraIndent = m_configService.Config.TagIndentation;
                     break;
                 }
 
@@ -455,7 +461,7 @@ namespace AutoDoxyDoc
         /// <param name="e"></param>
         private void onDoxygenConfigChanged(object sender, EventArgs e)
         {
-            m_regexTagSection = new Regex(@"\*\s+\" + m_config.TagChar + @"([a-z]+)\s+(.+)$", RegexOptions.Compiled);
+            m_regexTagSection = new Regex(@"\*\s+\" + m_configService.Config.TagChar + @"([a-z]+)\s+(.+)$", RegexOptions.Compiled);
         }
 
         //! Next command handler.
@@ -474,7 +480,7 @@ namespace AutoDoxyDoc
         private DTE m_dte;
 
         //! Doxygen config.
-        DoxygenConfig m_config = DoxygenConfig.Instance;
+        DoxygenConfigService m_configService;
 
         //! Doxygen generator.
         DoxygenGenerator m_generator;

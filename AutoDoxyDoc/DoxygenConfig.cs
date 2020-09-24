@@ -71,11 +71,6 @@ namespace AutoDoxyDoc
         public string ParamBooleanFormat { get; set; } = "If true, {0}. Otherwise not {0}.";
 
         /// <summary>
-        /// Singleton instance.
-        /// </summary>
-        public static DoxygenConfig Instance { get; } = new DoxygenConfig();
-
-        /// <summary>
         /// Constructor.
         /// </summary>
         public DoxygenConfig()

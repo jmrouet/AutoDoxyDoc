@@ -17,12 +17,13 @@ namespace AutoDoxyDoc
         /// </summary>
         /// <param name="sourceProvider"></param>
         /// <param name="textBuffer"></param>
-        public DoxygenCompletionSource(CompletionSourceProvider sourceProvider, ITextBuffer textBuffer)
+        public DoxygenCompletionSource(CompletionSourceProvider sourceProvider, ITextBuffer textBuffer, DoxygenConfigService configService)
         {
             m_sourceProvider = sourceProvider;
             m_textBuffer = textBuffer;
+            m_configService = configService;
             CreateCompletionLists();
-
+            m_configService.Config.ConfigChanged += onConfigChanged;
         }
 
         /// <summary>
@@ -68,7 +69,7 @@ namespace AutoDoxyDoc
                     compList = m_compListDir;
                 }
                 // Generic doxygen tags.
-                else if (prevChar == '@')
+                else if (prevChar == m_configService.Config.TagChar)
                 {
                     compList = m_compListTag;
                 }
@@ -96,6 +97,7 @@ namespace AutoDoxyDoc
         {
             if (!m_disposed)
             {
+                m_configService.Config.ConfigChanged -= onConfigChanged;
                 GC.SuppressFinalize(this);
                 m_disposed = true;
             }
@@ -166,8 +168,18 @@ namespace AutoDoxyDoc
         /// <param name="image">Image for the completion listbox.</param>
         private void AddCompletionTag(string name, ImageSource image)
         {
-            string tag = DoxygenConfig.Instance.TagChar + name;
+            string tag = m_configService.Config.TagChar + name;
             m_compListTag.Add(new Completion(tag, tag, string.Empty, image, string.Empty));
+        }
+
+        /// <summary>
+        /// Called when the Doxygen configuration has changed.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void onConfigChanged(object sender, EventArgs e)
+        {
+            CreateCompletionLists();
         }
 
         //! Completion source provider.
@@ -175,6 +187,9 @@ namespace AutoDoxyDoc
 
         //! Text buffer.
         private ITextBuffer m_textBuffer;
+
+        //! Doxygen configuration service.
+        private DoxygenConfigService m_configService;
 
         // List of tag completions.
         private List<Completion> m_compListTag = new List<Completion>();
