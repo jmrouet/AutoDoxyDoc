@@ -152,7 +152,7 @@ namespace AutoDoxyDoc
 
                             // Determine type of parameter (in, out or inout).
                             string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
-                            string paramAlignSpaces = new string(' ', maxParamNameLength - param.Name.Length + 2);
+                            string paramAlignSpaces = new string(' ', maxParamNameLength - param.Name.Length + 1);
                             string typeAlignSpaces = new string(' ', maxTypeDirectionLength - typeDirName.Length + 1);
                             string tagLine = m_indentString + Config.TagChar + "param " + typeDirName + typeAlignSpaces + param.Name + paramAlignSpaces;
                             sb.Append("\r\n" + spaces + " *  " + tagLine);
@@ -444,6 +444,7 @@ namespace AutoDoxyDoc
                     }
 
                     objectName += parentWords[i];
+                    first = false;
                 }
             }
 
