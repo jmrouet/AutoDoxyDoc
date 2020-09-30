@@ -39,10 +39,22 @@ namespace AutoDoxyDoc
         public bool GenerateIndentation(int curOffset, string prevLine, out int newOffset)
         {
             newOffset = curOffset;
+            Match tparamMatch = m_regexTParam.Match(prevLine);
             Match paramMatch = m_regexParam.Match(prevLine);
             Match tagMatch = m_regexTagSection.Match(prevLine);
 
-            if (paramMatch.Success)
+            if (tparamMatch.Success)
+            {
+                var commentCapture = tparamMatch.Groups[2];
+                int diff = commentCapture.Index - curOffset;
+
+                if (diff > 0)
+                {
+                    newOffset = commentCapture.Index + 1;
+                    return true;
+                }
+            }
+            else if (paramMatch.Success)
             {
                 var commentCapture = paramMatch.Groups[3];
                 int diff = commentCapture.Index - curOffset;
@@ -85,105 +97,20 @@ namespace AutoDoxyDoc
             // Start writing a new one.
             StringBuilder sb = new StringBuilder("/*!");
 
-            // Write main comment from existing comments, if found.
-            if (parsedComment.BriefComments.Count > 0)
+            // Write brief summary.
+            WriteBriefComment(sb, spaces, codeElement, parsedComment);
+
+            if (codeElement != null)
             {
-                foreach (string line in parsedComment.BriefComments)
+                // Write comments for template parameters, if any.
+                WriteTemplateParamComments(sb, spaces, codeElement, parsedComment);
+
+                // Write comments for function parameters and return value.
+                if (codeElement is CodeFunction)
                 {
-                    sb.Append("\r\n" + spaces + " *  " + line);
-                }
-            }
-            else
-            {
-                // Write placeholder for main comment.
-                sb.Append("\r\n" + spaces + " *  ");
-
-                // Try to determine initial main comment if comment auto-generation is enabled.
-                if (Config.SmartComments)
-                {
-                    sb.Append(TryGenerateBriefDesc(codeElement));
-                }
-            }
-
-            if (codeElement != null && codeElement is CodeFunction)
-            {
-                CodeFunction function = codeElement as CodeFunction;
-                int maxTypeDirectionLength = 0;
-                int maxParamNameLength = 0;
-
-                foreach (CodeElement child in codeElement.Children)
-                {
-                    CodeParameter param = child as CodeParameter;
-
-                    if (param != null)
-                    {
-                        // Check if the existing comment contained this parameter.
-                        ParsedParam parsedParam = null;
-
-                        if (parsedComment.Parameters.ContainsKey(param.Name))
-                        {
-                            parsedParam = parsedComment.Parameters[param.Name];
-                        }
-
-                        string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
-                        maxTypeDirectionLength = Math.Max(maxTypeDirectionLength, typeDirName.Length);
-                        maxParamNameLength = Math.Max(maxParamNameLength, param.Name.Length);
-                    }
-                }
-
-                // Create doxygen lines for each parameter.
-                if (codeElement.Children.Count > 0)
-                {
-                    sb.Append("\r\n" + spaces + " *");
-
-                    foreach (CodeElement child in codeElement.Children)
-                    {
-                        CodeParameter param = child as CodeParameter;
-
-                        if (param != null)
-                        {
-                            // Check if the existing comment contained this parameter.
-                            ParsedParam parsedParam = null;
-
-                            if (parsedComment.Parameters.ContainsKey(param.Name))
-                            {
-                                parsedParam = parsedComment.Parameters[param.Name];
-                            }
-
-                            // Determine type of parameter (in, out or inout).
-                            string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
-                            string paramAlignSpaces = new string(' ', maxParamNameLength - param.Name.Length + 1);
-                            string typeAlignSpaces = new string(' ', maxTypeDirectionLength - typeDirName.Length + 1);
-                            string tagLine = m_indentString + Config.TagChar + "param " + typeDirName + typeAlignSpaces + param.Name + paramAlignSpaces;
-                            sb.Append("\r\n" + spaces + " *  " + tagLine);
-
-                            // Add existing comments.
-                            if (parsedParam != null)
-                            {
-                                AppendComments(sb, parsedParam.Comments, spaces, tagLine.Length);
-                            }
-                            else if (Config.SmartComments && codeElement.Children.Count == 1)
-                            {
-                                sb.Append(TryGenerateParamDesc(codeElement, param));
-                            }
-                        }
-                    }
-                }
-
-                if (function.Type.AsString != "void")
-                {
-                    sb.Append("\r\n" + spaces + " *");
-                    string tagLine = m_indentString + Config.TagChar + "return ";
-                    sb.Append("\r\n" + spaces + " *  " + tagLine);
-
-                    if (parsedComment.Returns != null)
-                    {
-                        AppendComments(sb, parsedComment.Returns.Comments, spaces, tagLine.Length);
-                    }
-                    else if (Config.SmartComments)
-                    {
-                        sb.Append(TryGenerateReturnDesc(function));
-                    }
+                    CodeFunction function = codeElement as CodeFunction;
+                    WriteParamComments(sb, spaces, function, parsedComment);
+                    WriteReturnComment(sb, spaces, function, parsedComment);
                 }
             }
 
@@ -208,6 +135,194 @@ namespace AutoDoxyDoc
         public string GenerateTagStartLine(string spaces)
         {
             return "\r\n" + spaces + "*  ";
+        }
+
+        /// <summary>
+        /// Writes a brieft comment about the code element.
+        /// </summary>
+        /// <param name="sb">String builder</param>
+        /// <param name="spaces">Indentation spaces.</param>
+        /// <param name="codeElement">Code element.</param>
+        /// /// <param name="parsedComment">Parsed existing comment, if found.</param>
+        private void WriteBriefComment(StringBuilder sb, string spaces, CodeElement codeElement, ParsedComment parsedComment)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            // Write main comment from existing comments, if found.
+            if (parsedComment.BriefComments.Count > 0)
+            {
+                foreach (string line in parsedComment.BriefComments)
+                {
+                    sb.Append("\r\n" + spaces + " *  " + line);
+                }
+            }
+            else
+            {
+                // Write placeholder for main comment.
+                sb.Append("\r\n" + spaces + " *  ");
+
+                // Try to determine initial main comment if comment auto-generation is enabled.
+                if (Config.SmartComments)
+                {
+                    sb.Append(TryGenerateBriefDesc(codeElement));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes comments for function parameters.
+        /// </summary>
+        /// <param name="sb">String builder to write comments into.</param>
+        /// <param name="spaces">Indentation spaces.</param>
+        /// <param name="codeElement">Function code element.</param>
+        /// <param name="parsedComment">Parsed existing comment, if any.</param>
+        private void WriteTemplateParamComments(StringBuilder sb, string spaces, CodeElement codeElement, ParsedComment parsedComment)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            // Parse template parameters from the full function name.
+            string[] tparams = ParseTemplateParams(codeElement.FullName);
+
+            if (tparams.Length == 0)
+            {
+                return;
+            }
+
+            // Calculate maximum template parameter name length.
+            int maxParamNameLength = 0;
+
+            foreach (string tparamName in tparams)
+            {
+                maxParamNameLength = Math.Max(maxParamNameLength, tparamName.Length);
+            }
+
+            // Create doxygen lines for each parameter.
+            sb.Append("\r\n" + spaces + " *");
+
+            foreach (string tparamName in tparams)
+            {
+                // Check if the existing comment contained this parameter.
+                ParsedParam parsedParam = null;
+
+                if (parsedComment.TemplateParameters.ContainsKey(tparamName))
+                {
+                    parsedParam = parsedComment.TemplateParameters[tparamName];
+                }
+
+                string paramAlignSpaces = new string(' ', maxParamNameLength - tparamName.Length + 1);
+                string tagLine = m_indentString + Config.TagChar + "tparam " + tparamName + paramAlignSpaces;
+                sb.Append("\r\n" + spaces + " *  " + tagLine);
+
+                // Add existing comments.
+                if (parsedParam != null)
+                {
+                    AppendComments(sb, parsedParam.Comments, spaces, tagLine.Length);
+                }
+
+                // TODO: Any smart comments possible?
+            }
+        }
+
+        /// <summary>
+        /// Writes comments for function parameters.
+        /// </summary>
+        /// <param name="sb">String builder to write comments into.</param>
+        /// <param name="spaces">Indentation spaces.</param>
+        /// <param name="codeElement">Function code element.</param>
+        /// <param name="parsedComment">Parsed existing comment, if any.</param>
+        private void WriteParamComments(StringBuilder sb, string spaces, CodeFunction function, ParsedComment parsedComment)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            int maxTypeDirectionLength = 0;
+            int maxParamNameLength = 0;
+
+            foreach (CodeElement child in function.Children)
+            {
+                CodeParameter param = child as CodeParameter;
+
+                if (param != null)
+                {
+                    // Check if the existing comment contained this parameter.
+                    ParsedParam parsedParam = null;
+
+                    if (parsedComment.Parameters.ContainsKey(param.Name))
+                    {
+                        parsedParam = parsedComment.Parameters[param.Name];
+                    }
+
+                    string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
+                    maxTypeDirectionLength = Math.Max(maxTypeDirectionLength, typeDirName.Length);
+                    maxParamNameLength = Math.Max(maxParamNameLength, param.Name.Length);
+                }
+            }
+
+            // Create doxygen lines for each parameter.
+            if (function.Children.Count > 0)
+            {
+                sb.Append("\r\n" + spaces + " *");
+
+                foreach (CodeElement child in function.Children)
+                {
+                    CodeParameter param = child as CodeParameter;
+
+                    if (param != null)
+                    {
+                        // Check if the existing comment contained this parameter.
+                        ParsedParam parsedParam = null;
+
+                        if (parsedComment.Parameters.ContainsKey(param.Name))
+                        {
+                            parsedParam = parsedComment.Parameters[param.Name];
+                        }
+
+                        // Determine type of parameter (in, out or inout).
+                        string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
+                        string paramAlignSpaces = new string(' ', maxParamNameLength - param.Name.Length + 1);
+                        string typeAlignSpaces = new string(' ', maxTypeDirectionLength - typeDirName.Length + 1);
+                        string tagLine = m_indentString + Config.TagChar + "param " + typeDirName + typeAlignSpaces + param.Name + paramAlignSpaces;
+                        sb.Append("\r\n" + spaces + " *  " + tagLine);
+
+                        // Add existing comments.
+                        if (parsedParam != null)
+                        {
+                            AppendComments(sb, parsedParam.Comments, spaces, tagLine.Length);
+                        }
+                        else if (Config.SmartComments && function.Children.Count == 1)
+                        {
+                            sb.Append(TryGenerateParamDesc(function, param));
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes a comment for the function return value.
+        /// </summary>
+        /// <param name="sb">String builder.</param>
+        /// <param name="spaces">Indentation spaces.</param>
+        /// <param name="function">Code function.</param>
+        /// <param name="parsedComment">Parsed existing comment, if found.</param>
+        private void WriteReturnComment(StringBuilder sb, string spaces, CodeFunction function, ParsedComment parsedComment)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            if (function.Type.AsString != "void")
+            {
+                sb.Append("\r\n" + spaces + " *");
+                string tagLine = m_indentString + Config.TagChar + "return ";
+                sb.Append("\r\n" + spaces + " *  " + tagLine);
+
+                if (parsedComment.Returns != null)
+                {
+                    AppendComments(sb, parsedComment.Returns.Comments, spaces, tagLine.Length);
+                }
+                else if (Config.SmartComments)
+                {
+                    sb.Append(TryGenerateReturnDesc(function));
+                }
+            }
         }
 
         private bool IsInput(CodeParameter parameter)
@@ -269,60 +384,81 @@ namespace AutoDoxyDoc
                         continue;
                     }
 
-                    // Check if this is a parameter line.
-                    Match paramMatch = m_regexParam.Match(line);
+                    // Check if this is a template parameter line.
+                    Match tparamMatch = m_regexTParam.Match(line);
 
-                    if (paramMatch.Success)
+                    if (tparamMatch.Success)
                     {
-                        string name = paramMatch.Groups[2].Value;
-                        string firstComment = paramMatch.Groups[3].Value;
+                        string name = tparamMatch.Groups[1].Value;
+                        string firstComment = tparamMatch.Groups[2].Value;
 
-                        if (!parsedComment.Parameters.ContainsKey(name) && firstComment.Length > 0)
+                        if (!parsedComment.TemplateParameters.ContainsKey(name) && firstComment.Length > 0)
                         {
                             ParsedParam param = new ParsedParam();
                             param.Name = name;
-                            param.Direction = ToDirection(paramMatch.Groups[1].Value);
                             param.Comments.Add(firstComment);
-                            i = parseExtraComments(lines, i + 1, param.Comments);
+                            i = ParseExtraComments(lines, i + 1, param.Comments);
 
-                            parsedComment.Parameters.Add(param.Name, param);
+                            parsedComment.TemplateParameters.Add(param.Name, param);
                         }
                     }
                     else
                     {
-                        // Otherwise check if it is some other tag.
-                        Match sectionMatch = m_regexTagSection.Match(line);
+                        // Check if this is a parameter line.
+                        Match paramMatch = m_regexParam.Match(line);
 
-                        if (sectionMatch.Success)
+                        if (paramMatch.Success)
                         {
-                            string tagName = sectionMatch.Groups[1].Value;
-                            string firstComment = sectionMatch.Groups[2].Value;
+                            string name = paramMatch.Groups[2].Value;
+                            string firstComment = paramMatch.Groups[3].Value;
 
-                            if (firstComment.Length > 0)
+                            if (!parsedComment.Parameters.ContainsKey(name) && firstComment.Length > 0)
                             {
-                                ParsedSection section = new ParsedSection();
-                                section.TagName = tagName;
-                                section.Comments.Add(firstComment);
-                                i = parseExtraComments(lines, i + 1, section.Comments);
+                                ParsedParam param = new ParsedParam();
+                                param.Name = name;
+                                param.Direction = ToDirection(paramMatch.Groups[1].Value);
+                                param.Comments.Add(firstComment);
+                                i = ParseExtraComments(lines, i + 1, param.Comments);
 
-                                if (section.TagName == "return" || section.TagName == "returns")
-                                {
-                                    parsedComment.Returns = section;
-                                }
-                                else
-                                {
-                                    parsedComment.TagSections.Add(section);
-                                }
+                                parsedComment.Parameters.Add(param.Name, param);
                             }
                         }
                         else
                         {
-                            // If the line doesn't contain any tag, we try to extract text out of it.
-                            Match textMatch = m_regexText.Match(line);
+                            // Otherwise check if it is some other tag.
+                            Match sectionMatch = m_regexTagSection.Match(line);
 
-                            if (textMatch.Success)
+                            if (sectionMatch.Success)
                             {
-                                parsedComment.BriefComments.Add(textMatch.Groups[1].Value);
+                                string tagName = sectionMatch.Groups[1].Value;
+                                string firstComment = sectionMatch.Groups[2].Value;
+
+                                if (firstComment.Length > 0)
+                                {
+                                    ParsedSection section = new ParsedSection();
+                                    section.TagName = tagName;
+                                    section.Comments.Add(firstComment);
+                                    i = ParseExtraComments(lines, i + 1, section.Comments);
+
+                                    if (section.TagName == "return" || section.TagName == "returns")
+                                    {
+                                        parsedComment.Returns = section;
+                                    }
+                                    else
+                                    {
+                                        parsedComment.TagSections.Add(section);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // If the line doesn't contain any tag, we try to extract text out of it.
+                                Match textMatch = m_regexText.Match(line);
+
+                                if (textMatch.Success)
+                                {
+                                    parsedComment.BriefComments.Add(textMatch.Groups[1].Value);
+                                }
                             }
                         }
                     }
@@ -366,7 +502,7 @@ namespace AutoDoxyDoc
         /// <param name="startIndex">The first line to start parsing from.</param>
         /// <param name="comments">Extracted list of comments.</param>
         /// <returns>Index of the first line which was not treated as an extra comment.</returns>
-        private int parseExtraComments(string[] lines, int startIndex, List<string> comments)
+        private int ParseExtraComments(string[] lines, int startIndex, List<string> comments)
         {
             // Parse comment lines until we either come across a new doxygen tag or non-text line.
             int i = startIndex;
@@ -549,7 +685,7 @@ namespace AutoDoxyDoc
         /// <param name="parent">Parent function.</param>
         /// <param name="param">Parameter for which to generate the comment.</param>
         /// <returns>Generated text.</returns>
-        private string TryGenerateParamDesc(CodeElement parent, CodeParameter param)
+        private string TryGenerateParamDesc(CodeFunction parent, CodeParameter param)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             string desc = "";
@@ -631,6 +767,7 @@ namespace AutoDoxyDoc
         {
             m_indentString = new string(' ', Config.TagIndentation);
             m_regexParam = new Regex(@"\s*\*\s+\" + Config.TagChar + @"param\s+(\[[a-z,]+\])\s+(\w+)(?:\s+(.*))?$", RegexOptions.Compiled);
+            m_regexTParam = new Regex(@"\s*\*\s+\" + Config.TagChar + @"tparam\s+(\w+)(?:\s+(.*))?$", RegexOptions.Compiled);
             m_regexTagSection = new Regex(@"\s*\*\s+\" + Config.TagChar + @"([a-z]+)(?:\s+(.*))?$", RegexOptions.Compiled);
         }
 
@@ -687,6 +824,29 @@ namespace AutoDoxyDoc
         }
 
         /// <summary>
+        /// Extracts template parameters from a full class/function name.
+        /// </summary>
+        /// <param name="name">The name to parse.</param>
+        /// <returns>Extracted template parameters, if any.</returns>
+        private string[] ParseTemplateParams(string name)
+        {
+            string[] tparams = new string[0];
+
+            if (name.EndsWith(">"))
+            {
+                int startIndex = name.IndexOf('<');
+
+                if (startIndex >= 0)
+                {
+                    string substr = name.Substring(startIndex + 1, name.Length - startIndex - 2).Replace(" ", "");
+                    tparams = substr.Split(',');
+                }
+            }
+
+            return tparams;
+        }
+
+        /// <summary>
         /// Function parameter direction options.
         /// </summary>
         private enum ParamDirection
@@ -721,6 +881,7 @@ namespace AutoDoxyDoc
         private class ParsedComment
         {
             public List<string> BriefComments { get; set; } = new List<string>();
+            public Dictionary<string, ParsedParam> TemplateParameters { get; } = new Dictionary<string, ParsedParam>();
             public Dictionary<string, ParsedParam> Parameters { get; } = new Dictionary<string, ParsedParam>();
             public ParsedSection Returns { get; set; }
             public List<ParsedSection> TagSections { get; } = new List<ParsedSection>();
@@ -736,6 +897,7 @@ namespace AutoDoxyDoc
 
         //! Helper regular expressions.
         private Regex m_regexParam;
+        private Regex m_regexTParam;
         private Regex m_regexTagSection;
         private Regex m_regexText = new Regex(@"\s*\*\s+(.+)$", RegexOptions.Compiled);
     }
