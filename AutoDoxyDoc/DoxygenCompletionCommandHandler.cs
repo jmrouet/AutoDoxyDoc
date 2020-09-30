@@ -292,7 +292,7 @@ namespace AutoDoxyDoc
                 {
                     codeElement = fcm.CodeElementFromPoint(ts.ActivePoint, vsCMElement.vsCMElementFunction);
 
-                    if (!ts.ActivePoint.AtEndOfDocument)
+                    if (ts.ActivePoint.AtEndOfDocument)
                     {
                         break;
                     }
