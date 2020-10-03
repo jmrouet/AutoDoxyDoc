@@ -88,17 +88,17 @@ namespace AutoDoxyDoc
         public string ReturnBooleanDescFormat { get; set; } = "True if {0}. False if not.";
 
         [Category("Smart Comments (Advanced)")]
-        [DisplayName("File summary header files")]
-        [Description("File summary header files (*.h, *.hpp).")]
+        [DisplayName("File summary for header files")]
+        [Description("File summary for header files (*.h, *.hpp).")]
         public string FileCommentIsHeader { get; set; } = "Declares the {0}.";
 
         [Category("Smart Comments (Advanced)")]
-        [DisplayName("File summary source files")]
-        [Description("File summary source files (*.c, *.cpp, *.cxx).")]
+        [DisplayName("File summary for source files")]
+        [Description("File summary for source files (*.c, *.cpp, *.cxx).")]
         public string FileCommentIsSource { get; set; } = "Implements the {0}.";
 
         [Category("Smart Comments (Advanced)")]
-        [DisplayName("File summary for header files")]
+        [DisplayName("File summary for inline files")]
         [Description("File summary for inline files (*.inl).")]
         public string FileCommentIsInline { get; set; } = "Implements the {0}.";
 
