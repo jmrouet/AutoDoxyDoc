@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.Shell;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -135,6 +136,52 @@ namespace AutoDoxyDoc
         public string GenerateTagStartLine(string spaces)
         {
             return "\r\n" + spaces + "*  ";
+        }
+
+        /// <summary>
+        /// Generates a file comment.
+        /// </summary>
+        /// <param name="fullFilename">Name of the source file.</param>
+        /// <param name="selectedLine">The line where to place the caret after comment generation.</param>
+        /// <returns>Generated comment block.</returns>
+        public string GenerateFileComment(EnvDTE.DTE dte, out int selectedLine)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+
+            string filename = dte.ActiveDocument.Name;
+            string projectName = dte.ActiveDocument.ProjectItem.ContainingProject.Name;
+
+            // Fetch file comment template from config.
+            string fileComment = Config.FileCommentTemplate;
+
+            // Replace format tags.
+            DateTime localDate = DateTime.Now;
+            fileComment = fileComment.Replace("{FILENAME}", filename);
+            fileComment = fileComment.Replace("{PROJECTNAME}", projectName);
+            fileComment = fileComment.Replace("{AUTHOR}", System.Environment.UserName);
+            fileComment = fileComment.Replace("{YEAR}", localDate.ToString("yyyy"));
+            fileComment = fileComment.Replace("{MONTH}", localDate.ToString("MM"));
+            fileComment = fileComment.Replace("{DAY}", localDate.ToString("dd"));
+
+            // Generate smart comment.
+            string comment = TryGenerateFileDesc(filename);
+            fileComment = fileComment.Replace("{SMARTCOMMENT}", comment);
+
+            // Determine the line where to place the caret.
+            int selectedIndex = fileComment.IndexOf("{CURSOR}");
+
+            if (selectedIndex == -1)
+            {
+                selectedLine = fileComment.Count(c => c == '\n');
+            }
+            else
+            {
+                selectedLine = fileComment.Substring(0, selectedIndex).Count(c => c == '\n');
+            }
+
+            fileComment = fileComment.Replace("{CURSOR}", "");
+
+            return fileComment;
         }
 
         /// <summary>
@@ -559,15 +606,15 @@ namespace AutoDoxyDoc
         }
 
         /// <summary>
-        /// Retrieves a readable class name from a code class.
+        /// Retrieves a readable class name from.
         /// </summary>
         /// <param name="codeClass">Class reference.</param>
         /// <returns>The name of the class as a spaced string.</returns>
-        private string GetClassName(CodeClass codeClass)
+        private string GetClassName(string className)
         {
             string objectName = "";
             ThreadHelper.ThrowIfNotOnUIThread();
-            string[] parentWords = StringHelper.SplitCamelCase(codeClass.Name);
+            string[] parentWords = StringHelper.SplitCamelCase(className);
             bool first = true;
 
             for (int i = 0; i < parentWords.Length; ++i)
@@ -579,12 +626,54 @@ namespace AutoDoxyDoc
                         objectName += " ";
                     }
 
-                    objectName += parentWords[i];
+                    objectName += Unabbreviate(parentWords[i]);
                     first = false;
                 }
             }
 
             return objectName;
+        }
+
+        /// <summary>
+        /// Tries to generate a summary of a file based on its name.
+        /// </summary>
+        /// <param name="filename">Name of the file.</param>
+        /// <returns>Generated text.</returns>
+        private string TryGenerateFileDesc(string filename)
+        {
+            ThreadHelper.ThrowIfNotOnUIThread();
+            string smartComment = "";
+
+            if (Config.SmartComments)
+            {
+                // Extract extension and base name.
+                string ext = Path.GetExtension(filename);
+                string baseName = Path.GetFileNameWithoutExtension(filename);
+
+                // Analyze the name.
+                string className = GetClassName(baseName);
+                string[] words = StringHelper.SplitCamelCase(baseName);
+
+                if (words.Length > 1 && words[0] == "i")
+                {
+                    className += " interface";
+                }
+
+                if (ext == ".h" || ext == ".hpp")
+                {
+                    smartComment = String.Format(Config.FileCommentIsHeader, className);
+                }
+                else if (ext == ".c" || ext == ".cpp" || ext == ".cxx")
+                {
+                    smartComment = String.Format(Config.FileCommentIsSource, className);
+                }
+                else if (ext == ".inl")
+                {
+                    smartComment = String.Format(Config.FileCommentIsInline, className);
+                }
+            }
+
+            return smartComment;
         }
 
         /// <summary>
@@ -620,7 +709,7 @@ namespace AutoDoxyDoc
                     if (function.Parent is CodeClass)
                     {
                         var codeClass = function.Parent as CodeClass;
-                        className = GetClassName(codeClass);
+                        className = GetClassName(codeClass.Name);
                         owner = className + "'s ";
                     }
 

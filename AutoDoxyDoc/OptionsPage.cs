@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.ComponentModel.Design;
 using System.Configuration;
 using System.Linq;
 using System.Text;
@@ -9,12 +10,6 @@ using Microsoft.VisualStudio.Shell;
 
 namespace AutoDoxyDoc
 {
-    public class RegisteredAbbreviation
-    {
-        public string Abbreviation { get; set; }
-        public string Unabbreviated { get; set; }
-    };
-
     public class OptionsPage : DialogPage
     {
         [Category("General")]
@@ -26,6 +21,20 @@ namespace AutoDoxyDoc
         [DisplayName("Tag style")]
         [Description("Tag style to use. JavaDoc uses @param tags while Qt uses \\param tags.")]
         public DoxygenStyle TagStyle { get; set; } = DoxygenStyle.JavaDoc;
+
+        [Category("General")]
+        [DisplayName("File comment template")]
+        [Description("Template for the file beginning comment.")]
+        [Editor(typeof(MultilineStringEditor), typeof(System.Drawing.Design.UITypeEditor))]
+        public string FileCommentTemplate { get; set; } =
+            "/*!\r\n" +
+            " *  @file {FILENAME}\r\n" +
+            " *  @author {AUTHOR}\r\n" +
+            " *  @date {YEAR}-{MONTH}-{DAY}\r\n" +
+            " *  @project {PROJECTNAME}\r\n" +
+            " *\r\n" +
+            " *  {SMARTCOMMENT}{CURSOR}\r\n" +
+            " */";
 
         [Category("Smart Comments")]
         [DisplayName("Smart comments generation")]
@@ -78,7 +87,25 @@ namespace AutoDoxyDoc
         [Description("Template for return values when the function is a getter and returns a boolean.")]
         public string ReturnBooleanDescFormat { get; set; } = "True if {0}. False if not.";
 
+        [Category("Smart Comments (Advanced)")]
+        [DisplayName("File summary header files")]
+        [Description("File summary header files (*.h, *.hpp).")]
+        public string FileCommentIsHeader { get; set; } = "Declares the {0}.";
 
+        [Category("Smart Comments (Advanced)")]
+        [DisplayName("File summary source files")]
+        [Description("File summary source files (*.c, *.cpp, *.cxx).")]
+        public string FileCommentIsSource { get; set; } = "Implements the {0}.";
+
+        [Category("Smart Comments (Advanced)")]
+        [DisplayName("File summary for header files")]
+        [Description("File summary for inline files (*.inl).")]
+        public string FileCommentIsInline { get; set; } = "Implements the {0}.";
+
+        /// <summary>
+        /// Applies the new options to the Doxygen configuration.
+        /// </summary>
+        /// <param name="e"></param>
         protected override void OnApply(PageApplyEventArgs e)
         {
             if (e.ApplyBehavior == ApplyKind.Apply)

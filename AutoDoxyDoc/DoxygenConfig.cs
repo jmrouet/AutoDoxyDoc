@@ -26,6 +26,11 @@ namespace AutoDoxyDoc
         public DoxygenStyle TagStyle { get; set; } = DoxygenStyle.JavaDoc;
 
         /// <summary>
+        /// File comment template.
+        /// </summary>
+        public string FileCommentTemplate { get; set; } = "";
+
+        /// <summary>
         /// Tag starting character convenience getter.
         /// </summary>
         public char TagChar
@@ -69,6 +74,9 @@ namespace AutoDoxyDoc
         public string ReturnDescFormat { get; set; } = "The {0}.";
         public string ReturnBooleanDescFormat { get; set; } = "True if {0}. False if not.";
         public string ParamBooleanFormat { get; set; } = "If true, {0}. Otherwise not {0}.";
+        public string FileCommentIsHeader { get; set; } = "Declares the {0}.";
+        public string FileCommentIsSource { get; set; } = "Implements the {0}.";
+        public string FileCommentIsInline { get; set; } = "Implements the {0}.";
 
         /// <summary>
         /// Constructor.
@@ -85,6 +93,7 @@ namespace AutoDoxyDoc
         {
             TagIndentation = options.TagIndentation;
             TagStyle = options.TagStyle;
+            FileCommentTemplate = options.FileCommentTemplate;
             SmartComments = options.SmartComments;
             SmartCommentsForAllFunctions = options.SmartCommentsForAllFunctions;
             Abbreviations = options.Abbreviations;
@@ -95,6 +104,9 @@ namespace AutoDoxyDoc
             ReturnDescFormat = options.ReturnDescFormat;
             ReturnBooleanDescFormat = options.ReturnBooleanDescFormat;
             ParamBooleanFormat = options.ParamBooleanFormat;
+            FileCommentIsHeader = options.FileCommentIsHeader;
+            FileCommentIsSource = options.FileCommentIsSource;
+            FileCommentIsInline = options.FileCommentIsInline;
 
             ConfigChanged?.Invoke(this, EventArgs.Empty);
         }

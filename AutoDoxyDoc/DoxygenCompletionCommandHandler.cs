@@ -279,6 +279,19 @@ namespace AutoDoxyDoc
             int oldLine = ts.ActivePoint.Line;
             int oldOffset = ts.ActivePoint.LineCharOffset;
 
+            // Check if we're at the beginning of the document and should generate a file comment.
+            if (oldLine == 1)
+            {
+                string fileComment = m_generator.GenerateFileComment(m_dte, out int selectedLine);
+                ts.DeleteLeft(2); // Removing the // part here.
+                ts.Insert(fileComment);
+
+                // Move the caret.
+                ts.MoveToLineAndOffset(selectedLine + 1, 1);
+                ts.EndOfLine();
+                return;
+            }
+
             // Search for the associated code element for which to generate the comment.
             CodeElement codeElement = null;
             ts.LineDown();
