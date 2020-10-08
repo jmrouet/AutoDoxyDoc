@@ -746,7 +746,7 @@ namespace AutoDoxyDoc
                         {
                             // We'll use the first word as the verb in the general case.
                             // Determine the third person verb ending for the verb.
-                            string verb = StringHelper.GetThirdPersonVerb(funcNameWords[0]);
+                            string verb = StringHelper.GetThirdPersonVerb(Unabbreviate(funcNameWords[0]));
 
                             // In case a single word function name, we assume the object of the verb is the class itself.
                             string dest;
