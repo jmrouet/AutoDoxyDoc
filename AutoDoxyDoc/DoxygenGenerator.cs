@@ -298,7 +298,7 @@ namespace AutoDoxyDoc
                         parsedParam = parsedComment.Parameters[param.Name];
                     }
 
-                    string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
+                    string typeDirName = DirectionToString(GetParamDirection(function, param, parsedParam));
                     maxTypeDirectionLength = Math.Max(maxTypeDirectionLength, typeDirName.Length);
                     maxParamNameLength = Math.Max(maxParamNameLength, param.Name.Length);
                 }
@@ -324,7 +324,7 @@ namespace AutoDoxyDoc
                         }
 
                         // Determine type of parameter (in, out or inout).
-                        string typeDirName = DirectionToString(GetParamDirection(param, parsedParam));
+                        string typeDirName = DirectionToString(GetParamDirection(function, param, parsedParam));
                         string paramAlignSpaces = new string(' ', maxParamNameLength - param.Name.Length + 1);
                         string typeAlignSpaces = new string(' ', maxTypeDirectionLength - typeDirName.Length + 1);
                         string tagLine = m_indentString + Config.TagChar + "param " + typeDirName + typeAlignSpaces + param.Name + paramAlignSpaces;
@@ -518,25 +518,26 @@ namespace AutoDoxyDoc
         /// <summary>
         /// Determines parameter direction based on the code element and the previously parsed parameter comment line.
         /// </summary>
+        /// <param name="function">Parent function.</param>
         /// <param name="param">Code element for the parameter.</param>
         /// <param name="parsedParam">Existing parsed parameter info, if available.</param>
         /// <returns>The parameter direction.</returns>
-        private ParamDirection GetParamDirection(CodeParameter param, ParsedParam parsedParam)
+        private ParamDirection GetParamDirection(CodeFunction function, CodeParameter param, ParsedParam parsedParam)
         {
             ThreadHelper.ThrowIfNotOnUIThread();
             ParamDirection direction = ParamDirection.In;
+            bool isConstructor = (function.FunctionKind & vsCMFunction.vsCMFunctionConstructor) != 0;
 
-            if (!IsInput(param))
+            // By default trust the user if an existing direction is found.
+            if (parsedParam != null)
             {
-                if (parsedParam != null && parsedParam.Direction != ParamDirection.In)
-                {
-                    direction = parsedParam.Direction;
-                }
-                else
-                {
-                    // By default, non-inputs are categorized as inout.
-                    direction = ParamDirection.InOut;
-                }
+                direction = parsedParam.Direction;
+            }
+            // Constructor assumes inputs only. Otherwise we check the parameter data type to try to determine
+            // the appropriate direction.
+            else if (!isConstructor && !IsInput(param))
+            {
+                direction = ParamDirection.InOut;
             }
 
             return direction;
@@ -783,16 +784,19 @@ namespace AutoDoxyDoc
             bool setter = parent.Name.StartsWith("set");
             bool getter = parent.Name.StartsWith("get");
             bool isBoolean = param.Type.AsString == "bool";
+            string[] words = StringHelper.SplitCamelCase(param.Name);
 
             if (isBoolean)
             {
-                string[] words = StringHelper.SplitCamelCase(param.Name);
                 desc = StringHelper.Capitalize(String.Format(Config.ParamBooleanFormat, UnabbreviateAndJoin(words)));
             }
-            else if (setter || getter)
+            else if (setter)
             {
-                string[] words = StringHelper.SplitCamelCase(param.Name);
                 desc = StringHelper.Capitalize(String.Format(Config.ParamSetterDescFormat, UnabbreviateAndJoin(words)));
+            }
+            else if (getter && GetParamDirection(parent, param, null) != ParamDirection.In)
+            {
+                desc = StringHelper.Capitalize(String.Format(Config.ReturnDescFormat, UnabbreviateAndJoin(words)));
             }
 
             return desc;
@@ -813,7 +817,29 @@ namespace AutoDoxyDoc
             {
                 if (words[0] == "get")
                 {
-                    desc = StringHelper.Capitalize(String.Format(Config.ReturnDescFormat, UnabbreviateAndJoin(words, 1)));
+                    // Determine if the getter has output function parameters.
+                    bool hasOutParams = false;
+
+                    foreach (CodeElement child in function.Children)
+                    {
+                        CodeParameter param = child as CodeParameter;
+
+                        if (GetParamDirection(function, param, null) != ParamDirection.In)
+                        {
+                            hasOutParams = true;
+                            break;
+                        }
+                    }
+
+                    // Check for a special case: returns boolean and the parameter is returned in a function parameter.
+                    if (function.Type.AsString == "bool" && hasOutParams)
+                    {
+                        desc = StringHelper.Capitalize(String.Format(Config.ReturnBooleanDescFormat, "successful"));
+                    }
+                    else
+                    {
+                        desc = StringHelper.Capitalize(String.Format(Config.ReturnDescFormat, UnabbreviateAndJoin(words, 1)));
+                    }
                 }
                 else if (words[0] == "is")
                 {
