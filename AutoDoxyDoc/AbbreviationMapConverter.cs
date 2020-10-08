@@ -38,9 +38,8 @@ namespace AutoDoxyDoc
         public override object ConvertFrom(ITypeDescriptorContext context,
                                            CultureInfo culture, object value)
         {
-            if (value is string)
+            if (value != null && value is string)
             {
-                // TODO: Add error handling if the string is not using the expected formatting.
                 AbbreviationMap abbreviations = new AbbreviationMap();
                 string str = value as string;
                 string[] entries = str.Split(';');
@@ -48,7 +47,11 @@ namespace AutoDoxyDoc
                 foreach (string e in entries)
                 {
                     string[] parts = e.Split(',');
-                    abbreviations.Add(parts[0], parts[1]);
+
+                    if (parts.Length == 2)
+                    {
+                        abbreviations.Add(parts[0], parts[1]);
+                    }
                 }
 
                 return abbreviations;
