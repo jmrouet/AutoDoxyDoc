@@ -101,8 +101,21 @@ namespace AutoDoxyDoc
                 return;
             }
 
-            // Save current position.
             TextSelection ts = dte.ActiveDocument.Selection as TextSelection;
+
+            // Check if we're at the beginning of the document and should generate a file comment.
+            if (ts.ActivePoint.Line == 1)
+            {
+                string fileComment = m_generator.GenerateFileComment(dte, out int selectedLine);
+                ts.DeleteLeft(2); // Removing the // part here.
+                ts.Insert(fileComment);
+
+                // Move the caret.
+                ts.MoveToLineAndOffset(selectedLine + 1, 1);
+                ts.EndOfLine();
+                return;
+            }
+
             ts.EndOfLine();
 
             // Scroll down until we find a non-comment line.
