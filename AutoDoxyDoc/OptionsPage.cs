@@ -47,6 +47,11 @@ namespace AutoDoxyDoc
         public bool SmartCommentsForAllFunctions { get; set; } = true;
 
         [Category("Smart Comments")]
+        [DisplayName("Default parameter direction for non-const references")]
+        [Description("AutoDoxyDoc chooses this direction as the default one when it cannot determine proper usage from the parameter type.")]
+        public ParamDirection DefaultNonConstReferenceDirection { get; set; } = ParamDirection.InOut;
+
+        [Category("Smart Comments")]
         [DisplayName("Abbreviations")]
         [Description("Abbreviations that AutoDoxyDoc will unabbreviate when generating comments.")]
         [EditorAttribute(typeof(AbbreviationsEditor), typeof(System.Drawing.Design.UITypeEditor))]

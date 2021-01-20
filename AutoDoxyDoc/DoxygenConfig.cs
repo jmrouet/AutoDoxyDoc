@@ -8,6 +8,16 @@ namespace AutoDoxyDoc
         JavaDoc
     };
 
+    /// <summary>
+    /// Function parameter direction options.
+    /// </summary>
+    public enum ParamDirection
+    {
+        In,
+        InOut,
+        Out
+    }
+
     public class DoxygenConfig
     {
         /// <summary>
@@ -60,6 +70,11 @@ namespace AutoDoxyDoc
         public bool SmartCommentsForAllFunctions { get; set; } = true;
 
         /// <summary>
+        /// Default parameter direction directive for non-const references.
+        /// </summary>
+        public ParamDirection DefaultNonConstReferenceDirection { get; set; } = ParamDirection.InOut;
+
+        /// <summary>
         /// Abbreviations collection for unabbreviating words.
         /// </summary>
         public AbbreviationMap Abbreviations { get; set; } = new AbbreviationMap();
@@ -96,6 +111,7 @@ namespace AutoDoxyDoc
             FileCommentTemplate = options.FileCommentTemplate;
             SmartComments = options.SmartComments;
             SmartCommentsForAllFunctions = options.SmartCommentsForAllFunctions;
+            DefaultNonConstReferenceDirection = options.DefaultNonConstReferenceDirection;
             Abbreviations = options.Abbreviations;
             BriefSetterDescFormat = options.BriefSetterDescFormat;
             BriefGetterDescFormat = options.BriefGetterDescFormat;

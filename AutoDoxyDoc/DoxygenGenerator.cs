@@ -537,7 +537,7 @@ namespace AutoDoxyDoc
             // the appropriate direction.
             else if (!isConstructor && !IsInput(param))
             {
-                direction = ParamDirection.InOut;
+                direction = Config.DefaultNonConstReferenceDirection;
             }
 
             return direction;
@@ -959,16 +959,6 @@ namespace AutoDoxyDoc
             }
 
             return tparams;
-        }
-
-        /// <summary>
-        /// Function parameter direction options.
-        /// </summary>
-        private enum ParamDirection
-        {
-            In,
-            InOut,
-            Out
         }
 
         /// <summary>
