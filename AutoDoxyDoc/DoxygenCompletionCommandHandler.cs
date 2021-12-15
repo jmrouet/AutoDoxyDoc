@@ -241,13 +241,19 @@ namespace AutoDoxyDoc
             int oldOffset = ts.ActivePoint.LineCharOffset;
             int extraIndent = 0;
 
-            while (!currentLine.StartsWith("/*!"))
+            while (!currentLine.StartsWith("/*"))
             {
                 if (m_regexTagSection.IsMatch(currentLine))
                 {
                     extraIndent = m_configService.Config.TagIndentation;
                     break;
                 }
+
+                // protect from infinite loop when we reach the top of the document an end of comment
+                // the NewCommentLine() call is protected with a weak IsInsideComment() check
+                // that could be flawed with lines like: *pointer = value;
+                if (ts.ActivePoint.Line <= 1 || currentLine.Contains("*/"))
+                    return;
 
                 ts.LineUp();
                 currentLine = ts.ActivePoint.CreateEditPoint().GetLines(ts.ActivePoint.Line, ts.ActivePoint.Line + 1);
